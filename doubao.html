@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能数据可视化工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+        .data-table {
+            max-height: 300px;
+            overflow: auto;
+        }
+        .suggestion-tag {
+            transition: all 0.2s;
+        }
+        .suggestion-tag:hover {
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 顶部标题 -->
+    <header class="gradient-bg text-white py-6 shadow-lg">
+        <div class="container mx-auto px-6">
+            <h1 class="text-3xl font-bold">📊 智能数据可视化工具</h1>
+            <p class="mt-2 text-purple-100">粘贴数据，用自然语言描述，一键生成统计图表</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 左侧：数据输入区 -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- 数据输入 -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">📋 数据输入</h2>
+                    <p class="text-sm text-gray-500 mb-3">支持 CSV、TSV 或直接粘贴 Excel 表格</p>
+                    <textarea 
+                        id="dataInput" 
+                        class="w-full h-48 p-3 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                        placeholder="示例：
+月份,销售额,利润
+1月,1200,300
+2月,1500,450
+3月,1800,520
+4月,1600,480
+5月,2100,680"></textarea>
+                    <button 
+                        onclick="loadSampleData()" 
+                        class="mt-2 text-sm text-purple-600 hover:text-purple-800">
+                        加载示例数据
+                    </button>
+                    <button 
+                        onclick="parseData()" 
+                        class="w-full mt-4 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2.5 rounded-lg transition">
+                        解析数据
+                    </button>
+                </div>
+
+                <!-- 自然语言查询 -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">💬 自然语言查询</h2>
+                    <input 
+                        type="text" 
+                        id="queryInput" 
+                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="例如：用柱状图展示各月销售额趋势">
+                    
+                    <div class="mt-3">
+                        <p class="text-xs text-gray-500 mb-2">快捷查询：</p>
+                        <div class="flex flex-wrap gap-2" id="suggestions">
+                            <span class="suggestion-tag px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full cursor-pointer" onclick="setQuery('统计各列数据总和')">统计总和</span>
+                            <span class="suggestion-tag px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full cursor-pointer" onclick="setQuery('生成柱状图对比所有数值')">柱状图</span>
+                            <span class="suggestion-tag px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full cursor-pointer" onclick="setQuery('用折线图展示趋势变化')">折线图</span>
+                            <span class="suggestion-tag px-3 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full cursor-pointer" onclick="setQuery('生成饼图显示占比')">饼图</span>
+                            <span class="suggestion-tag px-3 py-1 bg-red-100 text-red-700 text-xs rounded-full cursor-pointer" onclick="setQuery('计算平均值和最大值')">统计分析</span>
+                            <span class="suggestion-tag px-3 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full cursor-pointer" onclick="setQuery('显示数据表格')">数据表格</span>
+                        </div>
+                    </div>
+                    
+                    <button 
+                        onclick="processQuery()" 
+                        class="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium py-2.5 rounded-lg transition">
+                        生成图表
+                    </button>
+                </div>
+
+                <!-- 图表类型选择 -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">📈 图表类型</h2>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="changeChartType('bar')" class="chart-type-btn p-2 border rounded-lg text-sm hover:bg-purple-50 hover:border-purple-300">📊 柱状图</button>
+                        <button onclick="changeChartType('line')" class="chart-type-btn p-2 border rounded-lg text-sm hover:bg-purple-50 hover:border-purple-300">📈 折线图</button>
+                        <button onclick="changeChartType('pie')" class="chart-type-btn p-2 border rounded-lg text-sm hover:bg-purple-50 hover:border-purple-300">🥧 饼图</button>
+                        <button onclick="changeChartType('doughnut')" class="chart-type-btn p-2 border rounded-lg text-sm hover:bg-purple-50 hover:border-purple-300">🍩 环形图</button>
+                        <button onclick="changeChartType('radar')" class="chart-type-btn p-2 border rounded-lg text-sm hover:bg-purple-50 hover:border-purple-300">🕸️ 雷达图</button>
+                        <button onclick="changeChartType('bar')" class="chart-type-btn p-2 border rounded-lg text-sm hover:bg-purple-50 hover:border-purple-300">📋 表格</button>
+                    </div>
+                </div>
+
+                <!-- 数据概览 -->
+                <div class="bg-white rounded-xl shadow-md p-6" id="dataOverview" style="display:none;">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">📑 数据概览</h2>
+                    <div id="overviewContent" class="text-sm space-y-2 text-gray-600"></div>
+                </div>
+            </div>
+
+            <!-- 右侧：图表展示区 -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- 图表区域 -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800" id="chartTitle">图表展示</h2>
+                        <button onclick="exportChart()" class="text-sm text-purple-600 hover:text-purple-800">
+                            💾 导出图片
+                        </button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 统计结果 -->
+                <div class="bg-white rounded-xl shadow-md p-6" id="statsSection" style="display:none;">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">📊 统计结果</h2>
+                    <div id="statsContent" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+                </div>
+
+                <!-- 数据表格 -->
+                <div class="bg-white rounded-xl shadow-md p-6" id="tableSection" style="display:none;">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">📋 详细数据</h2>
+                    <div class="data-table">
+                        <table class="w-full text-sm" id="dataTable">
+                            <thead class="bg-gray-50 sticky top-0"></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 查询解析结果 -->
+                <div class="bg-white rounded-xl shadow-md p-6" id="queryResult" style="display:none;">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">🔍 查询解析</h2>
+                    <div id="queryAnalysis" class="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center py-6 text-gray-500 text-sm">
+        <p>本地运行 · 无需API Key · 数据不上传</p>
+    </footer>
+
+    <script>
+        // 全局变量
+        let parsedData = { headers: [], rows: [], numericColumns: [] };
+        let currentChart = null;
+        let currentChartType = 'bar';
+
+        // 颜色配置
+        const chartColors = [
+            'rgba(102, 126, 234, 0.8)',
+            'rgba(118, 75, 162, 0.8)',
+            'rgba(237, 100, 166, 0.8)',
+            'rgba(79, 172, 254, 0.8)',
+            'rgba(0, 242, 254, 0.8)',
+            'rgba(106, 176, 76, 0.8)',
+            'rgba(255, 159, 67, 0.8)',
+            'rgba(224, 69, 69, 0.8)',
+        ];
+
+        const chartBorderColors = [
+            'rgba(102, 126, 234, 1)',
+            'rgba(118, 75, 162, 1)',
+            'rgba(237, 100, 166, 1)',
+            'rgba(79, 172, 254, 1)',
+            'rgba(0, 242, 254, 1)',
+            'rgba(106, 176, 76, 1)',
+            'rgba(255, 159, 67, 1)',
+            'rgba(224, 69, 69, 1)',
+        ];
+
+        // 加载示例数据
+        function loadSampleData() {
+            document.getElementById('dataInput').value = `月份,销售额(万),利润(万),成本(万)
+1月,120,32,88
+2月,156,45,111
+3月,189,58,131
+4月,165,49,116
+5月,210,72,138
+6月,245,85,160
+7月,278,96,182
+8月,256,88,168
+9月,220,74,146
+10月,198,65,133
+11月,235,78,157
+12月,310,112,198`;
+            parseData();
+        }
+
+        // 解析数据
+        function parseData() {
+            const input = document.getElementById('dataInput').value.trim();
+            if (!input) {
+                alert('请先输入数据');
+                return;
+            }
+
+            const lines = input.split('\n').filter(line => line.trim());
+            if (lines.length < 2) {
+                alert('数据至少需要包含表头和一行数据');
+                return;
+            }
+
+            // 自动检测分隔符
+            const firstLine = lines[0];
+            let delimiter = ',';
+            if (firstLine.includes('\t')) delimiter = '\t';
+            else if (firstLine.includes(';')) delimiter = ';';
+            else if (firstLine.includes('|')) delimiter = '|';
+
+            const headers = lines[0].split(delimiter).map(h => h.trim());
+            const rows = [];
+            const numericColumns = [];
+
+            // 检测数值列
+            for (let i = 0; i < headers.length; i++) {
+                let isNumeric = true;
+                for (let j = 1; j < lines.length; j++) {
+                    const val = lines[j].split(delimiter)[i];
+                    if (val && isNaN(parseFloat(val))) {
+                        isNumeric = false;
+                        break;
+                    }
+                }
+                if (isNumeric) numericColumns.push(i);
+            }
+
+            // 解析行数据
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(delimiter).map(v => v.trim());
+                const row = {};
+                headers.forEach((header, idx) => {
+                    let val = values[idx] || '';
+                    if (numericColumns.includes(idx)) {
+                        val = parseFloat(val) || 0;
+                    }
+                    row[header] = val;
+                });
+                rows.push(row);
+            }
+
+            parsedData = { headers, rows, numericColumns };
+            updateDataOverview();
+            renderDataTable();
+            
+            // 默认生成第一个图表
+            if (numericColumns.length > 0) {
+                currentChartType = 'bar';
+                renderChart('bar');
+            }
+
+            document.getElementById('dataOverview').style.display = 'block';
+            document.getElementById('tableSection').style.display = 'block';
+        }
+
+        // 更新数据概览
+        function updateDataOverview() {
+            const { headers, rows, numericColumns } = parsedData;
+            const html = `
+                <p>📏 共 <strong>${rows.length}</strong> 行数据</p>
+                <p>📐 共 <strong>${headers.length}</strong> 个字段</p>
+                <p>🔢 数值字段：<strong>${numericColumns.map(i => headers[i]).join('、')}</strong></p>
+                <p>📝 分类字段：<strong>${headers.filter((_, i) => !numericColumns.includes(i)).join('、') || '无'}</strong></p>
+            `;
+            document.getElementById('overviewContent').innerHTML = html;
+        }
+
+        // 渲染数据表格
+        function renderDataTable() {
+            const { headers, rows } = parsedData;
+            const thead = document.querySelector('#dataTable thead');
+            const tbody = document.querySelector('#dataTable tbody');
+
+            thead.innerHTML = `<tr>${headers.map(h => `<th class="px-3 py-2 text-left font-medium text-gray-700 border-b">${h}</th>`).join('')}</tr>`;
+            tbody.innerHTML = rows.map(row => 
+                `<tr class="hover:bg-gray-50">${headers.map(h => `<td class="px-3 py-2 border-b border-gray-100">${row[h]}</td>`).join('')}</tr>`
+            ).join('');
+        }
+
+        // 设置快捷查询
+        function setQuery(text) {
+            document.getElementById('queryInput').value = text;
+            processQuery();
+        }
+
+        // 自然语言查询处理
+        function processQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) {
+                alert('请输入查询描述');
+                return;
+            }
+            if (parsedData.rows.length === 0) {
+                alert('请先解析数据');
+                return;
+            }
+
+            const analysis = analyzeQuery(query);
+            displayQueryAnalysis(query, analysis);
+            executeAnalysis(analysis);
+        }
+
+        // 自然语言解析引擎
+        function analyzeQuery(query) {
+            const result = {
+                chartType: null,
+                action: 'chart', // chart, stats, table
+                targetColumns: [],
+                labelColumn: null,
+                aggregate: null,
+                sort: null
+            };
+
+            const q = query.toLowerCase();
+
+            // 识别图表类型
+            if (q.includes('柱状图') || q.includes('柱形图') || q.includes('条形图') || q.includes('bar')) {
+                result.chartType = 'bar';
+            } else if (q.includes('折线图') || q.includes('曲线图') || q.includes('趋势图') || q.includes('line')) {
+                result.chartType = 'line';
+            } else if (q.includes('饼图') || q.includes('占比') || q.includes('比例') || q.includes('pie')) {
+                result.chartType = 'pie';
+            } else if (q.includes('环形图') || q.includes('甜甜圈') || q.includes('doughnut')) {
+                result.chartType = 'doughnut';
+            } else if (q.includes('雷达图') || q.includes('radar')) {
+                result.chartType = 'radar';
+            }
+
+            // 识别操作类型
+            if (q.includes('统计') || q.includes('计算') || q.includes('分析') || q.includes('总和') || q.includes('平均') || q.includes('最大') || q.includes('最小')) {
+                result.action = 'stats';
+                if (q.includes('总和') || q.includes('合计') || q.includes('总计')) result.aggregate = 'sum';
+                else if (q.includes('平均')) result.aggregate = 'avg';
+                else if (q.includes('最大')) result.aggregate = 'max';
+                else if (q.includes('最小')) result.aggregate = 'min';
+            } else if (q.includes('表格') || q.includes('列表') || q.includes('显示数据')) {
+                result.action = 'table';
+            }
+
+            // 识别目标列
+            const { headers, numericColumns } = parsedData;
+            headers.forEach((header, idx) => {
+                if (q.includes(header)) {
+                    result.targetColumns.push(header);
+                }
+            });
+
+            // 如果没指定列，默认所有数值列
+            if (result.targetColumns.length === 0 && numericColumns.length > 0) {
+                result.targetColumns = numericColumns.map(i => headers[i]);
+            }
+
+            // 识别标签列（第一个非数值列）
+            const labelCols = headers.filter((_, i) => !numericColumns.includes(i));
+            result.labelColumn = labelCols.length > 0 ? labelCols[0] : headers[0];
+
+            // 如果没指定图表类型但有动作，推断图表类型
+            if (!result.chartType && result.action === 'chart') {
+                result.chartType = 'bar';
+            }
+
+            return result;
+        }
+
+        // 显示查询解析结果
+        function displayQueryAnalysis(query, analysis) {
+            const section = document.getElementById('queryResult');
+            const content = document.getElementById('queryAnalysis');
+            
+            let chartTypeText = {
+                'bar': '柱状图', 'line': '折线图', 'pie': '饼图',
+                'doughnut': '环形图', 'radar': '雷达图'
+            }[analysis.chartType] || '自动选择';
+
+            let actionText = {
+                'chart': '生成图表',
+                'stats': '统计计算',
+                'table': '展示表格'
+            }[analysis.action];
+
+            content.innerHTML = `
+                <p><strong>原始查询：</strong>${query}</p>
+                <p class="mt-1"><strong>识别动作：</strong>${actionText}</p>
+                <p class="mt-1"><strong>图表类型：</strong>${chartTypeText}</p>
+                <p class="mt-1"><strong>目标字段：</strong>${analysis.targetColumns.join('、') || '全部数值字段'}</p>
+                <p class="mt-1"><strong>分类标签：</strong>${analysis.labelColumn}</p>
+                ${analysis.aggregate ? `<p class="mt-1"><strong>聚合方式：</strong>${analysis.aggregate}</p>` : ''}
+            `;
+            section.style.display = 'block';
+        }
+
+        // 执行分析结果
+        function executeAnalysis(analysis) {
+            if (analysis.action === 'stats') {
+                computeStatistics(analysis);
+                if (analysis.chartType) {
+                    currentChartType = analysis.chartType;
+                    renderChart(analysis.chartType, analysis.targetColumns, analysis.labelColumn);
+                }
+            } else if (analysis.action === 'table') {
+                document.getElementById('tableSection').style.display = 'block';
+                document.getElementById('statsSection').style.display = 'none';
+            } else if (analysis.chartType) {
+                currentChartType = analysis.chartType;
+                renderChart(analysis.chartType, analysis.targetColumns, analysis.labelColumn);
+                document.getElementById('statsSection').style.display = 'none';
+            }
+        }
+
+        // 计算统计数据
+        function computeStatistics(analysis) {
+            const { rows, headers, numericColumns } = parsedData;
+            const statsContainer = document.getElementById('statsContent');
+            const statsSection = document.getElementById('statsSection');
+            
+            let html = '';
+            numericColumns.forEach(colIdx => {
+                const colName = headers[colIdx];
+                if (analysis.targetColumns.length > 0 && !analysis.targetColumns.includes(colName)) return;
+                
+                const values = rows.map(r => parseFloat(r[colName]) || 0);
+                const sum = values.reduce((a, b) => a + b, 0);
+                const avg = sum / values.length;
+                const max = Math.max(...values);
+                const min = Math.min(...values);
+
+                html += `
+                    <div class="bg-purple-50 rounded-lg p-4">
+                        <p class="text-purple-600 text-sm font-medium">${colName}</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-1">${sum.toFixed(2)}</p>
+                        <p class="text-xs text-gray-500 mt-1">总和</p>
+                    </div>
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <p class="text-blue-600 text-sm font-medium">${colName}</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-1">${avg.toFixed(2)}</p>
+                        <p class="text-xs text-gray-500 mt-1">平均值</p>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <p class="text-green-600 text-sm font-medium">${colName}</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-1">${max}</p>
+                        <p class="text-xs text-gray-500 mt-1">最大值</p>
+                    </div>
+                    <div class="bg-yellow-50 rounded-lg p-4">
+                        <p class="text-yellow-600 text-sm font-medium">${colName}</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-1">${min}</p>
+                        <p class="text-xs text-gray-500 mt-1">最小值</p>
+                    </div>
+                `;
+            });
+
+            statsContainer.innerHTML = html;
+            statsSection.style.display = 'block';
+        }
+
+        // 渲染图表
+        function renderChart(type, targetColumns = null, labelColumn = null) {
+            const { headers, rows, numericColumns } = parsedData;
+            
+            if (!labelColumn) {
+                const labelCols = headers.filter((_, i) => !numericColumns.includes(i));
+                labelColumn = labelCols.length > 0 ? labelCols[0] : headers[0];
+            }
+            
+            if (!targetColumns) {
+                targetColumns = numericColumns.map(i => headers[i]);
+            }
+
+            const labels = rows.map(row => row[labelColumn]);
+            const datasets = targetColumns.map((colName, idx) => ({
+                label: colName,
+                data: rows.map(row => parseFloat(row[colName]) || 0),
+                backgroundColor: type === 'pie' || type === 'doughnut' 
+                    ? rows.map((_, i) => chartColors[i % chartColors.length])
+                    : chartColors[idx % chartColors.length],
+                borderColor: type === 'pie' || type === 'doughnut'
+                    ? '#fff'
+                    : chartBorderColors[idx % chartBorderColors.length],
+                borderWidth: type === 'line' ? 2 : 1,
+                tension: 0.3,
+                fill: type === 'line' ? false : undefined
+            }));
+
+            // 销毁旧图表
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            currentChart = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: false
+                        }
+                    },
+                    scales: (type === 'pie' || type === 'doughnut' || type === 'radar') ? {} : {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('chartTitle').textContent = `数据${getChartTypeName(type)}`;
+        }
+
+        function getChartTypeName(type) {
+            const names = {
+                'bar': '柱状图',
+                'line': '折线图',
+                'pie': '饼图',
+                'doughnut': '环形图',
+                'radar': '雷达图'
+            };
+            return names[type] || '图表';
+        }
+
+        // 切换图表类型
+        function changeChartType(type) {
+            if (parsedData.rows.length === 0) {
+                alert('请先解析数据');
+                return;
+            }
+            currentChartType = type;
+            renderChart(type);
+        }
+
+        // 导出图表
+        function exportChart() {
+            if (!currentChart) {
+                alert('请先生成图表');
+                return;
+            }
+            const link = document.createElement('a');
+            link.download = 'chart.png';
+            link.href = document.getElementById('mainChart').toDataURL('image/png');
+            link.click();
+        }
+
+        // 页面加载完成后自动加载示例
+        window.onload = function() {
+            loadSampleData();
+        };
+    </script>
+</body>
+</html>
